@@ -137,26 +137,55 @@ def stooq_csv_url(symbol: str) -> str:
 
 def fetch_stooq_daily_close(stooq_symbol: str):
     url = stooq_csv_url(stooq_symbol)
-    r = requests.get(url, timeout=45)
+
+    # Stooq sometimes blocks "generic" clients; User-Agent helps.
+    headers = {"User-Agent": "Mozilla/5.0 (GitHubActions; +https://github.com/)"}
+
+    r = requests.get(url, headers=headers, timeout=45)
     r.raise_for_status()
 
     text = r.text.strip()
-    lines = text.splitlines()
-    if not lines or not lines[0].startswith("Date,"):
-        raise RuntimeError(f"Unexpected Stooq CSV header for {stooq_symbol}")
+    if not text:
+        raise RuntimeError(f"Empty response from Stooq for {stooq_symbol}")
 
-    reader = csv.DictReader(lines)
+    # If Stooq returned HTML (block page / error), fail with a useful snippet.
+    low = text.lower()
+    if "<html" in low or "<!doctype html" in low:
+        raise RuntimeError(
+            f"Stooq returned HTML (not CSV) for {stooq_symbol}. "
+            f"First 200 chars: {text[:200]!r}"
+        )
+
+    lines = text.splitlines()
+    if not lines:
+        raise RuntimeError(f"No lines returned from Stooq for {stooq_symbol}")
+
+    # Handle BOM on the first line if present
+    header = lines[0].lstrip("\ufeff").strip()
+
+    # Accept either comma or semicolon CSV headers, as long as it contains Date and Close.
+    if "date" not in header.lower() or "close" not in header.lower():
+        raise RuntimeError(
+            f"Unexpected Stooq header for {stooq_symbol}: {header!r}. "
+            f"First 200 chars: {text[:200]!r}"
+        )
+
+    # Detect delimiter (comma vs semicolon)
+    delimiter = ";" if ";" in header and "," not in header else ","
+
+    reader = csv.DictReader(lines, delimiter=delimiter)
     last = None
     for row in reader:
         last = row
 
     if not last:
-        raise RuntimeError(f"No rows returned from Stooq for {stooq_symbol}")
+        raise RuntimeError(f"No data rows returned from Stooq for {stooq_symbol}")
 
-    date_str = last["Date"]
-    close_str = last.get("Close")
-    if close_str is None:
-        raise RuntimeError(f"Missing Close column in Stooq for {stooq_symbol}")
+    date_str = (last.get("Date") or last.get("date") or "").strip()
+    close_str = (last.get("Close") or last.get("close") or "").strip()
+
+    if not date_str or not close_str:
+        raise RuntimeError(f"Missing Date/Close in last row for {stooq_symbol}: {last}")
 
     return date_str, float(close_str)
 
