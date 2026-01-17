@@ -29,7 +29,6 @@ jobs:
           python scripts/update_latest.py
         env:
           METALPRICE_API_KEY: ${{ secrets.METALPRICE_API_KEY }}
-          FORCE_UPDATE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
 
       - name: Commit changes
         run: |
