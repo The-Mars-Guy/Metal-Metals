@@ -24,11 +24,14 @@ STOOQ_MAP = {
     "ALU": "AL.F",  # Aluminum
 }
 
+
 def utc_now():
     return datetime.now(timezone.utc)
 
+
 def today_utc_date():
     return utc_now().strftime("%Y-%m-%d")
+
 
 def read_meta():
     if not META_PATH.exists():
@@ -38,9 +41,11 @@ def read_meta():
     except Exception:
         return {}
 
+
 def already_updated_today(meta: dict) -> bool:
     last = meta.get("last_updated_utc", "")
     return isinstance(last, str) and last.startswith(today_utc_date())
+
 
 def write_meta(note: str = "", sources: dict | None = None):
     meta = {
@@ -51,6 +56,7 @@ def write_meta(note: str = "", sources: dict | None = None):
         "sources": sources or {},
     }
     META_PATH.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
 
 def load_series(symbol: str):
     p = OUT_DIR / f"{symbol}.json"
@@ -64,8 +70,10 @@ def load_series(symbol: str):
         pass
     return []
 
+
 def save_series(symbol: str, rows):
     (OUT_DIR / f"{symbol}.json").write_text(json.dumps(rows), encoding="utf-8")
+
 
 def upsert_point(symbol: str, date_str: str, value: float):
     rows = load_series(symbol)
@@ -85,6 +93,7 @@ def upsert_point(symbol: str, date_str: str, value: float):
 
     rows.sort(key=lambda x: x.get("date", ""))
     save_series(symbol, rows)
+
 
 def fetch_metalprice_latest():
     if not API_KEY:
@@ -131,16 +140,16 @@ def fetch_metalprice_latest():
 
     return date_str, results
 
+
 def stooq_csv_url(symbol: str) -> str:
     # Daily OHLC CSV (ascending by date)
     return f"https://stooq.com/q/d/l/?s={symbol.lower()}&i=d"
 
+
 def fetch_stooq_daily_close(stooq_symbol: str):
     url = stooq_csv_url(stooq_symbol)
 
-    # Stooq sometimes blocks "generic" clients; User-Agent helps.
     headers = {"User-Agent": "Mozilla/5.0 (GitHubActions; +https://github.com/)"}
-
     r = requests.get(url, headers=headers, timeout=45)
     r.raise_for_status()
 
@@ -148,7 +157,6 @@ def fetch_stooq_daily_close(stooq_symbol: str):
     if not text:
         raise RuntimeError(f"Empty response from Stooq for {stooq_symbol}")
 
-    # If Stooq returned HTML (block page / error), fail with a useful snippet.
     low = text.lower()
     if "<html" in low or "<!doctype html" in low:
         raise RuntimeError(
@@ -160,20 +168,16 @@ def fetch_stooq_daily_close(stooq_symbol: str):
     if not lines:
         raise RuntimeError(f"No lines returned from Stooq for {stooq_symbol}")
 
-    # Handle BOM on the first line if present
     header = lines[0].lstrip("\ufeff").strip()
-
-    # Accept either comma or semicolon CSV headers, as long as it contains Date and Close.
     if "date" not in header.lower() or "close" not in header.lower():
         raise RuntimeError(
             f"Unexpected Stooq header for {stooq_symbol}: {header!r}. "
             f"First 200 chars: {text[:200]!r}"
         )
 
-    # Detect delimiter (comma vs semicolon)
     delimiter = ";" if ";" in header and "," not in header else ","
-
     reader = csv.DictReader(lines, delimiter=delimiter)
+
     last = None
     for row in reader:
         last = row
@@ -188,6 +192,7 @@ def fetch_stooq_daily_close(stooq_symbol: str):
         raise RuntimeError(f"Missing Date/Close in last row for {stooq_symbol}: {last}")
 
     return date_str, float(close_str)
+
 
 def main():
     force = os.getenv("FORCE_UPDATE", "0") == "1"
@@ -206,19 +211,33 @@ def main():
         print(f"Saved {sym} @ {mp_date} (MetalpriceAPI key={info['key']})")
     sources_used["MetalpriceAPI"] = {"symbols": METALPRICE_SYMBOLS, "date": mp_date}
 
-    # 2) Copper + Aluminum from Stooq (two HTTP downloads)
-    # Stooq date may differ by exchange calendar; we store their own date.
+    # 2) Copper + Aluminum from Stooq (best effort)
+    stooq_ok = []
+    stooq_failed = []
+
     for sym, stooq_sym in STOOQ_MAP.items():
-        s_date, close_val = fetch_stooq_daily_close(stooq_sym)
-        upsert_point(sym, s_date, close_val)
-        print(f"Saved {sym} @ {s_date} (Stooq ticker={stooq_sym})")
-    sources_used["Stooq"] = {"symbols": list(STOOQ_MAP.items())}
+        try:
+            s_date, close_val = fetch_stooq_daily_close(stooq_sym)
+            upsert_point(sym, s_date, close_val)
+            print(f"Saved {sym} @ {s_date} (Stooq ticker={stooq_sym})")
+            stooq_ok.append({"series": sym, "ticker": stooq_sym, "date": s_date})
+        except Exception as e:
+            # IMPORTANT: do not fail the whole workflow if Stooq is empty/down
+            print(f"Warning: could not update {sym} from Stooq ({stooq_sym}): {e}")
+            stooq_failed.append({"series": sym, "ticker": stooq_sym, "error": str(e)})
+
+    sources_used["Stooq"] = {
+        "requested": list(STOOQ_MAP.items()),
+        "ok": stooq_ok,
+        "failed": stooq_failed,
+    }
 
     write_meta(
-        note="Daily update: MetalpriceAPI (XAU/XAG/XPD/XPT) + Stooq futures closes (XCU/ALU). Cached max 1 run/day UTC.",
+        note="Daily update: MetalpriceAPI (XAU/XAG/XPD/XPT) + Stooq (best effort) for XCU/ALU. Cached max 1 run/day UTC.",
         sources=sources_used,
     )
     print("Done.")
+
 
 if __name__ == "__main__":
     main()
