@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Metals Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Metals Prices</h1>
+    <div class="sub">
+      <span id="last-updated">Loading…</span>
+    </div>
+  </header>
+
+  <section class="controls">
+    <div class="group">
+      <label for="range">Range</label>
+      <select id="range">
+        <option value="5y">5y</option>
+        <option value="1y">1y</option>
+        <option value="ytd">YTD</option>
+        <option value="6m">6m</option>
+        <option value="3m">3m</option>
+        <option value="1m">1m</option>
+        <option value="1w">1w</option>
+        <option value="3d">3d</option>
+        <option value="1d">1d</option>
+      </select>
+    </div>
+
+    <div class="group toggles">
+      <label class="toggle">
+        <input type="checkbox" id="logScale" />
+        <span>Log scale</span>
+      </label>
+
+      <label class="toggle">
+        <input type="checkbox" id="normalize" checked />
+        <span>Normalize (start=100)</span>
+      </label>
+    </div>
+  </section>
+
+  <section class="picker">
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <main>
+    <div id="chart"></div>
+  </main>
+
+  <footer>
+    <small>
+      Data stored in this repo and updated daily via GitHub Actions.
+      (No API calls from your visitors.)
+    </small>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

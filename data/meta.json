@@ -1,0 +1,13 @@
+{
+  "last_updated_utc": "Never",
+  "symbols": [
+    "XAU",
+    "XAG",
+    "XPD",
+    "XPT",
+    "XCU",
+    "ALU"
+  ],
+  "base": "USD",
+  "note": "Run GitHub Action (or scripts/update_latest.py) to fetch first datapoint. Caching prevents repeat calls in same UTC day."
+}
