@@ -1,5 +1,5 @@
 {
-  "last_updated_utc": "Never",
+  "last_updated_utc": "2026-01-17 04:51:37",
   "symbols": [
     "XAU",
     "XAG",
@@ -9,5 +9,41 @@
     "ALU"
   ],
   "base": "USD",
-  "note": "Run GitHub Action (or scripts/update_latest.py) to fetch first datapoint. Caching prevents repeat calls in same UTC day."
+  "note": "Daily update: MetalpriceAPI (XAU/XAG/XPD/XPT) + Stooq (best effort) for XCU/ALU. Cached max 1 run/day UTC.",
+  "sources": {
+    "MetalpriceAPI": {
+      "symbols": [
+        "XAU",
+        "XAG",
+        "XPD",
+        "XPT"
+      ],
+      "date": "2026-01-16"
+    },
+    "Stooq": {
+      "requested": [
+        [
+          "XCU",
+          "HG.F"
+        ],
+        [
+          "ALU",
+          "AL.F"
+        ]
+      ],
+      "ok": [],
+      "failed": [
+        {
+          "series": "XCU",
+          "ticker": "HG.F",
+          "error": "Empty response from Stooq for HG.F"
+        },
+        {
+          "series": "ALU",
+          "ticker": "AL.F",
+          "error": "Empty response from Stooq for AL.F"
+        }
+      ]
+    }
+  }
 }
