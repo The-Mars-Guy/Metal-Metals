@@ -1,5 +1,0 @@
-{
-  "last_updated_utc": null,
-  "source": "MetalpriceAPI",
-  "notes": "This file is updated daily by GitHub Actions. series.json holds the time series used by the chart."
-}
