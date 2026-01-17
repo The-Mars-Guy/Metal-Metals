@@ -1,9 +1,0 @@
-{
-  "name": "metals-dashboard",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "update": "node scripts/update_daily.js",
-    "backfill:5y": "node scripts/backfill_5y.js"
-  }
-}
