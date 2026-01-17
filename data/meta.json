@@ -1,13 +1,1 @@
-{
-  "last_updated_utc": "2026-01-17 00:47:06",
-  "symbols": [
-    "XAU",
-    "XAG",
-    "XPD",
-    "XPT",
-    "XCU",
-    "ALU"
-  ],
-  "base": "USD",
-  "note": "Updated via cached daily job (max 1 call per UTC day)."
-}
+
